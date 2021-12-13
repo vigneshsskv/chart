@@ -38,11 +38,11 @@ class ChartRotation {
 }
 
 @immutable
-class ToolTip {
+class ToolTipStyle {
   final bool hide;
   final PaintOptions? toolTipLineStyle;
 
-  const ToolTip({this.hide = true, this.toolTipLineStyle});
+  const ToolTipStyle({this.hide = true, this.toolTipLineStyle});
 }
 
 /// A widget for displaying raw charts.
@@ -88,7 +88,7 @@ class ChartView extends StatefulWidget {
 
   final ChartTouchCallback? onRelease;
 
-  final ToolTip? toolTip;
+  final ToolTipStyle? toolTip;
 
   @override
   _ChartViewState createState() => _ChartViewState();

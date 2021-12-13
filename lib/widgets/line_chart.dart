@@ -131,7 +131,7 @@ class LineChart extends Chart {
 
   final ChartTouchCallback? onRelease;
 
-  final ToolTip? toolTip;
+  final ToolTipStyle? toolTip;
 
   @override
   _LineChartState createState() => _LineChartState();
