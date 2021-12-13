@@ -110,6 +110,7 @@ class LineChart extends Chart {
     this.onTouch,
     this.onMove,
     this.onRelease,
+    this.toolTip,
   }) : super(key: key);
 
   final List<Line> lines;
@@ -129,6 +130,8 @@ class LineChart extends Chart {
   final ChartTouchListener? onMove;
 
   final ChartTouchCallback? onRelease;
+
+  final ToolTip? toolTip;
 
   @override
   _LineChartState createState() => _LineChartState();
@@ -197,6 +200,7 @@ class _LineChartState extends State<LineChart> {
 
     return ChartView(
       charts: lineCharts,
+      toolTip: widget.toolTip,
       decor: ChartDecor(
         axes: axesData,
         legend: legend,
