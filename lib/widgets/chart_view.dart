@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:chart/chart_drawable.dart';
 import 'package:chart/decor/decor.dart';
@@ -15,6 +14,8 @@ typedef ChartTouchListener = void Function(
 /// Used as a callback for pointer release events. The [pointer] is the same unique id
 /// used in the [ChartTouchListener] callback.
 typedef ChartTouchCallback = void Function(int pointer);
+
+typedef IndicatorToolbar = Widget Function(Map<int, ChartTouch> data);
 
 /// The rotation of a chart.
 @immutable
@@ -41,8 +42,13 @@ class ChartRotation {
 class ToolTipStyle {
   final bool hide;
   final PaintOptions? toolTipLineStyle;
+  final IndicatorToolbar? toolbar;
 
-  const ToolTipStyle({this.hide = true, this.toolTipLineStyle});
+  const ToolTipStyle({
+    this.hide = true,
+    this.toolTipLineStyle,
+    this.toolbar,
+  });
 }
 
 /// A widget for displaying raw charts.
@@ -59,6 +65,7 @@ class ChartView extends StatefulWidget {
     this.onMove,
     this.onRelease,
     this.toolTip,
+    this.indicator,
   }) : super(key: key);
 
   /// The charts to draw within the view. The order of the list is the
@@ -90,6 +97,8 @@ class ChartView extends StatefulWidget {
 
   final ToolTipStyle? toolTip;
 
+  final void Function(Offset position, Map<int, ChartTouch>? data)? indicator;
+
   @override
   _ChartViewState createState() => _ChartViewState();
 }
@@ -104,7 +113,7 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _controller!.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -219,8 +228,12 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
         } else {
           updateIndicatorLine(null);
         }
+        if (widget.indicator != null) {
+          widget.indicator!(offset, events);
+        }
+        if (events == null) return;
         if (widget.onTouch != null) {
-          if (events != null) widget.onTouch!(event.pointer, events);
+          widget.onTouch!(event.pointer, events);
         }
       },
       onPointerMove: (event) {
@@ -233,12 +246,19 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
         } else {
           updateIndicatorLine(null);
         }
+        if (widget.indicator != null) {
+          widget.indicator!(offset, events);
+        }
+        if (events == null) return;
         if (widget.onMove != null) {
-          if (events != null) widget.onMove!(event.pointer, events);
+          widget.onMove!(event.pointer, events);
         }
       },
       onPointerUp: (event) {
         updateIndicatorLine(null);
+        if (widget.indicator != null) {
+          widget.indicator!(Offset.zero, null);
+        }
         if (widget.onRelease != null) {
           widget.onRelease!(event.pointer);
         }

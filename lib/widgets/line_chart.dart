@@ -110,7 +110,7 @@ class LineChart extends Chart {
     this.onTouch,
     this.onMove,
     this.onRelease,
-    this.toolTip,
+    required this.toolTip,
   }) : super(key: key);
 
   final List<Line> lines;
@@ -131,13 +131,15 @@ class LineChart extends Chart {
 
   final ChartTouchCallback? onRelease;
 
-  final ToolTipStyle? toolTip;
+  final ToolTipStyle toolTip;
 
   @override
   _LineChartState createState() => _LineChartState();
 }
 
 class _LineChartState extends State<LineChart> {
+  OverlayEntry? _toolTip;
+
   @override
   Widget build(BuildContext context) {
     final lines = widget.lines;
@@ -201,6 +203,28 @@ class _LineChartState extends State<LineChart> {
     return ChartView(
       charts: lineCharts,
       toolTip: widget.toolTip,
+      indicator: (position, data) {
+        var size = MediaQuery.of(context).size;
+        bool landscape = size.width > size.height;
+        var callback = widget.toolTip.toolbar;
+        if (callback == null) return;
+        _toolTip?.remove();
+        _toolTip = null;
+        if (data == null || (position.dy == 0 && position.dx == 0)) return;
+        var child = callback(data);
+        _toolTip = OverlayEntry(
+          builder: (context) {
+            return Positioned(
+              left: (position.dx * (landscape ? 0.95 : 0.70)),
+              top: position.dy * (landscape ? 0.8 : 1),
+              child: child,
+            );
+          },
+        );
+        Overlay.of(context)?.insert(
+          _toolTip!,
+        );
+      },
       decor: ChartDecor(
         axes: axesData,
         legend: legend,
@@ -208,7 +232,11 @@ class _LineChartState extends State<LineChart> {
       chartPadding: widget.chartPadding,
       rotation: widget.vertical ? ChartRotation.clockwise : ChartRotation.none,
       onMove: widget.onMove,
-      onRelease: widget.onRelease,
+      onRelease: (pointer) {
+        _toolTip?.remove();
+        if (widget.onRelease == null) return;
+        widget.onRelease!(pointer);
+      },
       onTouch: widget.onTouch,
     );
   }

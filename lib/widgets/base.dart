@@ -127,7 +127,36 @@ class FixedTickGenerator<T> implements TickGenerator<T> {
 
 @immutable
 class ChartAxis<Value> {
-  static String defaultTickLabelFn<V>(V value) => value.toString();
+  static String defaultTickLabelFn<V>(V value) {
+    if (value is double) {
+      return _convertedFormat(value.toInt());
+    } else if (value is int) {
+      return _convertedFormat(value.toInt());
+    }
+    return value.toString();
+  }
+
+  static String _convertedFormat(int value) {
+    var oneTrillion = 1000000000000,
+        oneBillion = 1000000000,
+        oneMillion = 1000000,
+        oneThousand = 1000;
+    if (value > oneTrillion) {
+      var data = value / oneTrillion;
+      return '${((value % oneTrillion) > 1) ? data.toStringAsFixed(1) : data.toInt()}T';
+    } else if (value > oneBillion) {
+      var data = value / oneBillion;
+      return '${((value % oneBillion) > 1) ? data.toStringAsFixed(1) : data.toInt()}B';
+    } else if (value > oneMillion) {
+      var data = value / oneMillion;
+      return '${((value % oneMillion) > 1) ? data.toStringAsFixed(1) : data.toInt()}M';
+    } else if (value >= oneThousand) {
+      var data = value / oneThousand;
+      return '${((value % oneThousand) > 1) ? data.toStringAsFixed(1) : data.toInt()}K';
+    } else {
+      return value.toString();
+    }
+  }
 
   ChartAxis({
     this.span,
