@@ -37,6 +37,14 @@ class ChartRotation {
   final double theta;
 }
 
+@immutable
+class ToolTip {
+  final bool hide;
+  final PaintOptions? toolTipLineStyle;
+
+  const ToolTip({this.hide = true, this.toolTipLineStyle});
+}
+
 /// A widget for displaying raw charts.
 class ChartView extends StatefulWidget {
   const ChartView({
@@ -50,6 +58,7 @@ class ChartView extends StatefulWidget {
     this.onTouch,
     this.onMove,
     this.onRelease,
+    this.toolTip,
   }) : super(key: key);
 
   /// The charts to draw within the view. The order of the list is the
@@ -79,6 +88,8 @@ class ChartView extends StatefulWidget {
 
   final ChartTouchCallback? onRelease;
 
+  final ToolTip? toolTip;
+
   @override
   _ChartViewState createState() => _ChartViewState();
 }
@@ -89,6 +100,7 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
   AnimationController? _controller;
   late Animation<double> _curve;
   _ChartPainter? _painter;
+  Offset? showLine;
 
   @override
   void dispose() {
@@ -147,7 +159,17 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
       rotation: rotation,
       chartPadding: chartPadding,
       repaint: _controller,
+      showLine: showLine,
+      toolTipLineStyle: widget.toolTip?.toolTipLineStyle,
     );
+  }
+
+  void updateIndicatorLine(Offset? offset) {
+    var visible = widget.toolTip?.hide ?? true;
+    if (!visible) {
+      showLine = offset;
+      _updatePainter();
+    }
   }
 
   void _updatePainter() {
@@ -156,9 +178,7 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
       duration = const Duration(milliseconds: 1);
     }
 
-    if (null != _controller) {
-      _controller!.dispose();
-    }
+    _controller?.dispose();
 
     _controller = AnimationController(vsync: this, duration: duration);
     _curve = CurvedAnimation(
@@ -171,7 +191,7 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
       _painter = painter;
     });
 
-    _controller!.forward(from: 0.0);
+    _controller?.forward(from: 0.0);
   }
 
   @override
@@ -190,25 +210,35 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Listener(
       onPointerDown: (event) {
+        RenderBox box =
+            _paintKey.currentContext!.findRenderObject() as RenderBox;
+        Offset offset = box.globalToLocal(event.position);
+        final events = _painter?.resolveTouch(offset, box.size);
+        if (events != null) {
+          updateIndicatorLine(offset);
+        } else {
+          updateIndicatorLine(null);
+        }
         if (widget.onTouch != null) {
-          RenderBox box =
-              _paintKey.currentContext!.findRenderObject() as RenderBox;
-          Offset offset = box.globalToLocal(event.position);
-          final events = _painter!.resolveTouch(offset, box.size);
           if (events != null) widget.onTouch!(event.pointer, events);
         }
       },
       onPointerMove: (event) {
+        RenderBox box =
+            _paintKey.currentContext?.findRenderObject() as RenderBox;
+        Offset offset = box.globalToLocal(event.position);
+        final events = _painter!.resolveTouch(offset, box.size);
+        if (events != null) {
+          updateIndicatorLine(offset);
+        } else {
+          updateIndicatorLine(null);
+        }
         if (widget.onMove != null) {
-          RenderBox box =
-              _paintKey.currentContext!.findRenderObject() as RenderBox;
-          Offset offset = box.globalToLocal(event.position);
-
-          final events = _painter!.resolveTouch(offset, box.size);
           if (events != null) widget.onMove!(event.pointer, events);
         }
       },
       onPointerUp: (event) {
+        updateIndicatorLine(null);
         if (widget.onRelease != null) {
           widget.onRelease!(event.pointer);
         }
@@ -233,6 +263,8 @@ class _ChartPainter extends CustomPainter {
   final Animation<ChartDecor> decor;
   final ChartRotation rotation;
   final EdgeInsets chartPadding;
+  final Offset? showLine;
+  final PaintOptions? toolTipLineStyle;
 
   Size? _size;
 
@@ -242,6 +274,8 @@ class _ChartPainter extends CustomPainter {
     required this.rotation,
     required this.chartPadding,
     required Listenable? repaint,
+    required this.showLine,
+    required this.toolTipLineStyle,
   }) : super(repaint: repaint);
 
   Map<int, ChartTouch>? resolveTouch(Offset touch, Size boxSize) {
@@ -310,6 +344,18 @@ class _ChartPainter extends CustomPainter {
     for (final animation in charts) {
       final chart = animation.value;
       chart.draw(rotatedChartArea);
+    }
+
+    if (showLine != null) {
+      canvas.drawLine(
+        Offset(showLine?.dx ?? 0, 25),
+        Offset(showLine?.dx ?? 0, size.height - 25),
+        Paint()
+          ..color = toolTipLineStyle?.color ?? Colors.black
+          ..strokeWidth = toolTipLineStyle?.strokeWidth ?? 2
+          ..style = toolTipLineStyle?.style ?? PaintingStyle.stroke
+          ..strokeCap = StrokeCap.butt,
+      );
     }
 
     // restore to before clip (see start of method)
