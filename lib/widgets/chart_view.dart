@@ -65,7 +65,6 @@ class ChartView extends StatefulWidget {
     this.onMove,
     this.onRelease,
     this.toolTip,
-    this.indicator,
   }) : super(key: key);
 
   /// The charts to draw within the view. The order of the list is the
@@ -97,8 +96,6 @@ class ChartView extends StatefulWidget {
 
   final ToolTipStyle? toolTip;
 
-  final void Function(Offset position, Map<int, ChartTouch>? data)? indicator;
-
   @override
   _ChartViewState createState() => _ChartViewState();
 }
@@ -110,6 +107,7 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
   late Animation<double> _curve;
   _ChartPainter? _painter;
   Offset? showLine;
+  Map<int, ChartTouch>? _data;
 
   @override
   void dispose() {
@@ -223,13 +221,11 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
             _paintKey.currentContext!.findRenderObject() as RenderBox;
         Offset offset = box.globalToLocal(event.position);
         final events = _painter?.resolveTouch(offset, box.size);
+        _data = events;
         if (events != null) {
           updateIndicatorLine(offset);
         } else {
           updateIndicatorLine(null);
-        }
-        if (widget.indicator != null) {
-          widget.indicator!(offset, events);
         }
         if (events == null) return;
         if (widget.onTouch != null) {
@@ -241,13 +237,11 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
             _paintKey.currentContext?.findRenderObject() as RenderBox;
         Offset offset = box.globalToLocal(event.position);
         final events = _painter!.resolveTouch(offset, box.size);
+        _data = events;
         if (events != null) {
           updateIndicatorLine(offset);
         } else {
           updateIndicatorLine(null);
-        }
-        if (widget.indicator != null) {
-          widget.indicator!(offset, events);
         }
         if (events == null) return;
         if (widget.onMove != null) {
@@ -255,24 +249,45 @@ class _ChartViewState extends State<ChartView> with TickerProviderStateMixin {
         }
       },
       onPointerUp: (event) {
+        _data = null;
         updateIndicatorLine(null);
-        if (widget.indicator != null) {
-          widget.indicator!(Offset.zero, null);
-        }
         if (widget.onRelease != null) {
           widget.onRelease!(event.pointer);
         }
       },
-      child: CustomPaint(
-        key: _paintKey,
-        painter: _painter,
-        child: Container(
-          constraints: const BoxConstraints(
-            minWidth: 10.0,
-            minHeight: 10.0,
+      child: Stack(
+        children: [
+          CustomPaint(
+            key: _paintKey,
+            painter: _painter,
+            child: Container(
+              constraints: const BoxConstraints(
+                minWidth: 10.0,
+                minHeight: 10.0,
+              ),
+            ),
           ),
-        ),
+          _checkPopOver(),
+        ],
       ),
+    );
+  }
+
+  Widget _checkPopOver() {
+    var size = MediaQuery.of(context).size;
+    var width = size.width;
+    var callback = widget.toolTip?.toolbar;
+    if (callback == null) return Container();
+    var xAxis = showLine?.dx ?? 0;
+    if (_data == null || (showLine?.dy == 0 && xAxis == 0)) {
+      return Container();
+    }
+    var child = callback(_data!);
+    return Positioned(
+      left: (width / 2) > xAxis ? (xAxis + 20) : null,
+      top: widget.chartPadding.top,
+      right: (width / 2) < xAxis ? width - (xAxis + 20) : null,
+      child: child,
     );
   }
 }
