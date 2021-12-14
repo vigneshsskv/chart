@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:chart/chart_drawable.dart';
 import 'package:chart/decor/decor.dart';
 import 'package:chart/decor/legend.dart';
 import 'package:chart/line/curves.dart';
@@ -138,7 +139,8 @@ class LineChart extends Chart {
 }
 
 class _LineChartState extends State<LineChart> {
-  OverlayEntry? _toolTip;
+  Offset? _position;
+  Map<int, ChartTouch>? _data;
 
   @override
   Widget build(BuildContext context) {
@@ -200,44 +202,52 @@ class _LineChartState extends State<LineChart> {
             offset: widget.legendOffset,
           );
 
-    return ChartView(
-      charts: lineCharts,
-      toolTip: widget.toolTip,
-      indicator: (position, data) {
-        var size = MediaQuery.of(context).size;
-        bool landscape = size.width > size.height;
-        var callback = widget.toolTip.toolbar;
-        if (callback == null) return;
-        _toolTip?.remove();
-        _toolTip = null;
-        if (data == null || (position.dy == 0 && position.dx == 0)) return;
-        var child = callback(data);
-        _toolTip = OverlayEntry(
-          builder: (context) {
-            return Positioned(
-              left: (position.dx * (landscape ? 0.95 : 0.70)),
-              top: position.dy * (landscape ? 0.8 : 1),
-              child: child,
-            );
+    return Stack(
+      children: [
+        ChartView(
+          charts: lineCharts,
+          toolTip: widget.toolTip,
+          indicator: (position, data) {
+            setState(() {
+              _position = position;
+              _data = data;
+            });
           },
-        );
-        Overlay.of(context)?.insert(
-          _toolTip!,
-        );
-      },
-      decor: ChartDecor(
-        axes: axesData,
-        legend: legend,
-      ),
-      chartPadding: widget.chartPadding,
-      rotation: widget.vertical ? ChartRotation.clockwise : ChartRotation.none,
-      onMove: widget.onMove,
-      onRelease: (pointer) {
-        _toolTip?.remove();
-        if (widget.onRelease == null) return;
-        widget.onRelease!(pointer);
-      },
-      onTouch: widget.onTouch,
+          decor: ChartDecor(
+            axes: axesData,
+            legend: legend,
+          ),
+          chartPadding: widget.chartPadding,
+          rotation:
+              widget.vertical ? ChartRotation.clockwise : ChartRotation.none,
+          onMove: widget.onMove,
+          onRelease: (pointer) {
+            _data = null;
+            if (widget.onRelease == null) return;
+            widget.onRelease!(pointer);
+          },
+          onTouch: widget.onTouch,
+        ),
+        _checkPopOver(),
+      ],
+    );
+  }
+
+  Widget _checkPopOver() {
+    var size = MediaQuery.of(context).size;
+    var width = size.width;
+    var callback = widget.toolTip.toolbar;
+    if (callback == null) return Container();
+    var xAxis = _position?.dx ?? 0;
+    if (_data == null || (_position?.dy == 0 && xAxis == 0)) {
+      return Container();
+    }
+    var child = callback(_data!);
+    return Positioned(
+      left: (width / 2) > xAxis ? (xAxis + 20) : null,
+      top: widget.chartPadding.top,
+      right: (width / 2) < xAxis ? width - (xAxis + 20) : null,
+      child: child,
     );
   }
 }
